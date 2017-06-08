@@ -13,27 +13,18 @@ use NaiveSerializer\Serializer;
 
 final class Application
 {
+    public function schemaController(): void {
+        $schemaName = $_GET['name'];
+        header('Content-Type: text/json', true, 200);
+        echo (file_get_contents(__DIR__ . '/' . $schemaName . '.json'));
+    }
+
     public function placeOrderController(): void
     {
         $requestBody = file_get_contents('php://input');
-
         $command = Serializer::deserialize(PlaceOrder::class, $requestBody);
 
-        $order = Order::place(
-            OrderId::fromString($command->orderId),
-            ConferenceId::fromString($command->conferenceId),
-            (int)$command->numberOfTickets
-        );
-
-        Database::persist($order);
-
-        $email = \Swift_Message::newInstance()
-            ->setTo(['noreply@mywebsite.com'])
-            ->setFrom(['noreply@mywebsite.com'])
-            ->setSubject('Thanks for your order')
-            ->setBody('Test');
-
-        $this->mailer()->send($email);
+        $this->placeOrder($command);
 
         header('Content-Type: text/plain', true, 200);
         exit;
@@ -41,7 +32,13 @@ final class Application
 
     public function whenOrderPlaced(OrderPlaced $event)
     {
-        // respond to OrderPlaced event
+        $email = \Swift_Message::newInstance()
+            ->setTo(['noreply@mywebsite.com'])
+            ->setFrom(['noreply@mywebsite.com'])
+            ->setSubject('Thanks for your order')
+            ->setBody('Test');
+
+        $this->mailer()->send($email);
     }
 
     private function orderRepository(): EventSourcedAggregateRepository
@@ -76,7 +73,7 @@ final class Application
         return $eventDispatcher;
     }
 
-    private function mailer(): \Swift_Mailer
+    public function mailer(): \Swift_Mailer
     {
         static $mailer;
 
@@ -86,5 +83,21 @@ final class Application
         }
 
         return $mailer;
+    }
+
+    /**
+     * @param $command
+     */
+    public function placeOrder($command): void
+    {
+        $order = Order::place(
+            OrderId::fromString($command->orderId),
+            ConferenceId::fromString($command->conferenceId),
+            (int)$command->numberOfTickets
+        );
+
+        //Database::persist($order);
+
+        Application::orderRepository()->save($order);
     }
 }

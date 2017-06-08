@@ -3,9 +3,11 @@ declare(strict_types=1);
 
 namespace ConferenceWeb;
 
+use Common\EventSourcing\Aggregate\Repository\EventSourcedAggregateRepository;
 use GuzzleHttp\Client;
 use NaiveSerializer\Serializer;
 use Ramsey\Uuid\Uuid;
+use Shared\RabbitMQ\Exchange;
 use Shared\StringUtil;
 
 final class Application
@@ -17,20 +19,29 @@ final class Application
             $command = $_POST;
             $command['orderId'] = (string)Uuid::uuid4();
 
-            $httpClient = new Client();
+            /*$httpClient = new Client();
             $httpClient->post('http://orders_and_registrations_web:8080/placeOrder', [
                     'body' => Serializer::serialize($command),
                     'headers' => [
                         'Content-Type' => 'application/json'
                     ]
                 ]
-            );
+            );*/
+
+            Exchange::publish('order', $command);
 
             header('Location: /thankYou?orderId=' . $command['orderId']);
             exit;
         }
 
-        $conferences = json_decode(file_get_contents('http://conference_management:8080/listConferences'), true);
+        //$conferences = json_decode(file_get_contents('http://conference_management:8080/listConferences'), true);
+
+        $redis = new \Predis\Client([
+            'host' => 'redis'
+        ]);
+
+        // load all projections
+        $conferences = array_map('json_decode', $redis->hgetall('conferences'));
 
         ?>
         <form action="#" method="post">
@@ -38,7 +49,7 @@ final class Application
                 <label for="conferenceId">Select a conference:</label>
                 <select id="conferenceId" name="conferenceId">
                     <?php foreach ($conferences as $conference): ?>
-                        <option value="<?php echo $conference['id']; ?>"><?php echo StringUtil::escapeHtml($conference['name']); ?></option>
+                        <option value="<?php echo $conference->id; ?>"><?php echo StringUtil::escapeHtml($conference->name); ?></option>
                     <?php endforeach; ?>
                 </select>
             </div>

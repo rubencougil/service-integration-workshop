@@ -13,7 +13,17 @@ $app = new Application();
 retry(3, 1000, function () use ($app) {
     Queue::consume(
         function (Message $message) use ($app) {
-            // do nothing (yet)
+            $command = \NaiveSerializer\Serializer::deserialize(\OrdersAndRegistrations\PlaceOrder::class, $message->content);
+
+            $validator = new JsonSchema\Validator;
+            $validator->validate($command, json_decode(file_get_contents(__DIR__ . '/placeOrder.json')));
+
+            if ($validator->isValid()) {
+                (new Application())->placeOrder($command);
+            } else {
+                \Common\CommandLine\stdout('ERROR: ' . json_encode($validator->getErrors()));
+            }
+
         },
         'orders_and_registrations'
     );

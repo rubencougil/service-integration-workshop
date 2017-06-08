@@ -1,0 +1,16 @@
+{
+  "title": "placeOrder",
+  "type": "object",
+  "properties": {
+    "conferenceId": {
+      "type": "string"
+    },
+    "numberOfTickets": {
+      "type": "integer"
+    },
+    "orderId": {
+      "type": "string"
+    }
+},
+  "required": ["conferenceId","numberOfTickets","orderId"]
+}
